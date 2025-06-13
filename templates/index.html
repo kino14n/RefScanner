@@ -4,48 +4,100 @@
   <meta charset="UTF-8">
   <title>RefScanner</title>
   <style>
-    body { font-family: sans-serif; max-width: 640px; margin: 2rem auto; }
-    textarea { width: 100%; height: 80px; }
+    body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; }
+    textarea { width: 100%; height: 100px; }
+    button { padding: 0.5rem 1rem; margin-top: 0.5rem; }
+    .loading { font-style: italic; color: #555; margin-top: 1rem; }
     table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
   </style>
 </head>
 <body>
   <h1>🔍 RefScanner</h1>
-  <p>Introduce uno o varios códigos (separados por comas):</p>
-  <textarea id="codes" placeholder="Ej: 173H-1, C9009L"></textarea>
+  <p>Introduce códigos <strong>separados por comas</strong> o <strong>uno por línea</strong>:</p>
+  <textarea id="codes" placeholder="Ejemplo:&#10;173H-1&#10;C9009L, D-1234"></textarea>
+  <br>
   <button id="btn">Buscar</button>
   <div id="output"></div>
 
   <script>
-    document.getElementById('btn').onclick = async () => {
-      const raw = document.getElementById('codes').value;
-      const codes = raw.split(',').map(s=>s.trim()).filter(Boolean);
-      const resp = await fetch('/search', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({ codes })
-      });
-      const data = await resp.json();
+    document.addEventListener('DOMContentLoaded', () => {
+      console.log('🛠 RefScanner JS cargado');
+      const btn = document.getElementById('btn');
       const out = document.getElementById('output');
-      out.innerHTML = '';
-      if (!Object.keys(data).length) {
-        return out.textContent = '⚠️ No se encontró ningún código.';
-      }
-      let html = '<table><tr><th>Código</th><th>Manifiesto</th><th>Link</th><th>Veces</th></tr>';
-      for (let c of Object.keys(data)) {
-        for (let item of data[c]) {
-          html += `<tr>
-            <td>${item.code}</td>
-            <td>${item.manifesto}</td>
-            <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
-            <td>${item.occurrences}</td>
-          </tr>`;
+
+      btn.addEventListener('click', async e => {
+        e.preventDefault();
+        const raw = document.getElementById('codes').value;
+
+        // Separa por comas o saltos de línea
+        const codes = raw
+          .split(/[\n,]+/)
+          .map(s => s.trim())
+          .filter(Boolean);
+
+        if (!codes.length) {
+          out.innerHTML = '<span class="loading">⚠️ Ingresa al menos un código.</span>';
+          return;
         }
-      }
-      html += '</table>';
-      out.innerHTML = html;
-    };
+
+        out.innerHTML = '<span class="loading">⌛ Buscando...</span>';
+
+        try {
+          const resp = await fetch(`${window.location.origin}/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ codes })
+          });
+          const data = await resp.json();
+
+          // Si no hay resultados
+          if (!Object.keys(data).length) {
+            out.innerHTML = '<span class="loading">⚠️ No se encontró ningún código.</span>';
+            return;
+          }
+
+          // Construye la tabla con columna Página
+          let html = `
+            <table>
+              <tr>
+                <th>Código</th>
+                <th>Manifiesto</th>
+                <th>Link</th>
+                <th>Veces</th>
+                <th>Página</th>
+              </tr>
+          `;
+          for (let term of Object.keys(data)) {
+            const items = data[term];
+            if (items.length === 0) {
+              html += `
+                <tr>
+                  <td colspan="5">No se encontró “${term}”.</td>
+                </tr>`;
+            } else {
+              items.forEach(item => {
+                html += `
+                  <tr>
+                    <td>${item.code}</td>
+                    <td>${item.manifesto}</td>
+                    <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
+                    <td>${item.occurrences}</td>
+                    <td>${item.page}</td>
+                  </tr>`;
+              });
+            }
+          }
+          html += '</table>';
+          out.innerHTML = html;
+
+        } catch (err) {
+          console.error('🔥 Error en fetch:', err);
+          out.innerHTML = '<span class="loading">❌ Error al buscar. Mira la consola.</span>';
+        }
+      });
+    });
   </script>
 </body>
 </html>
