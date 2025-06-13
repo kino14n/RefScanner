@@ -15,86 +15,54 @@
 </head>
 <body>
   <h1>🔍 RefScanner</h1>
-  <p>Introduce códigos <strong>separados por comas</strong> o <strong>uno por línea</strong>:</p>
-  <textarea id="codes" placeholder="Ejemplo:&#10;173H-1&#10;C9009L, D-1234"></textarea>
-  <br>
+  <p>Introduce códigos separados por comas o uno por línea:</p>
+  <textarea id="codes" placeholder="Ejemplo:&#10;173H-1&#10;C9009L, D-1234"></textarea><br>
   <button id="btn">Buscar</button>
   <div id="output"></div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('🛠 RefScanner JS cargado');
-      const btn = document.getElementById('btn');
-      const out = document.getElementById('output');
+      const btn = document.getElementById('btn'),
+            out = document.getElementById('output');
 
       btn.addEventListener('click', async e => {
         e.preventDefault();
         const raw = document.getElementById('codes').value;
-
-        // Separa por comas o saltos de línea
-        const codes = raw
-          .split(/[\n,]+/)
-          .map(s => s.trim())
-          .filter(Boolean);
-
+        const codes = raw.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
         if (!codes.length) {
           out.innerHTML = '<span class="loading">⚠️ Ingresa al menos un código.</span>';
           return;
         }
-
         out.innerHTML = '<span class="loading">⌛ Buscando...</span>';
 
         try {
-          const resp = await fetch(`${window.location.origin}/search`, {
+          const resp = await fetch('/search', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ codes })
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({codes})
           });
           const data = await resp.json();
-
-          // Si no hay resultados
-          if (!Object.keys(data).length) {
-            out.innerHTML = '<span class="loading">⚠️ No se encontró ningún código.</span>';
-            return;
-          }
-
-          // Construye la tabla con columna Página
-          let html = `
-            <table>
-              <tr>
-                <th>Código</th>
-                <th>Manifiesto</th>
-                <th>Link</th>
-                <th>Veces</th>
-                <th>Página</th>
-              </tr>
-          `;
-          for (let term of Object.keys(data)) {
-            const items = data[term];
-            if (items.length === 0) {
-              html += `
-                <tr>
-                  <td colspan="5">No se encontró “${term}”.</td>
-                </tr>`;
+          let html = '<table><tr><th>Código</th><th>Manifiesto</th><th>Link</th><th>Veces</th><th>Página</th></tr>';
+          for (let term in data) {
+            if (data[term].length === 0) {
+              html += `<tr><td colspan="5">No se encontró “${term}”.</td></tr>`;
             } else {
-              items.forEach(item => {
-                html += `
-                  <tr>
-                    <td>${item.code}</td>
-                    <td>${item.manifesto}</td>
-                    <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
-                    <td>${item.occurrences}</td>
-                    <td>${item.page}</td>
-                  </tr>`;
+              data[term].forEach(item => {
+                html += `<tr>
+                  <td>${item.code}</td>
+                  <td>${item.manifesto}</td>
+                  <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
+                  <td>${item.occurrences}</td>
+                  <td>${item.page}</td>
+                </tr>`;
               });
             }
           }
           html += '</table>';
           out.innerHTML = html;
-
         } catch (err) {
-          console.error('🔥 Error en fetch:', err);
-          out.innerHTML = '<span class="loading">❌ Error al buscar. Mira la consola.</span>';
+          console.error(err);
+          out.innerHTML = '<span class="loading">❌ Error al buscar. Revisa la consola.</span>';
         }
       });
     });
