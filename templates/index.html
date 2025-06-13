@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>RefScanner</title>
+  <style>
+    body { font-family: sans-serif; max-width: 640px; margin: 2rem auto; }
+    textarea { width: 100%; height: 80px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>🔍 RefScanner</h1>
+  <p>Introduce uno o varios códigos (separados por comas):</p>
+  <textarea id="codes" placeholder="Ej: 173H-1, C9009L"></textarea>
+  <button id="btn">Buscar</button>
+  <div id="output"></div>
+
+  <script>
+    document.getElementById('btn').onclick = async () => {
+      const raw = document.getElementById('codes').value;
+      const codes = raw.split(',').map(s=>s.trim()).filter(Boolean);
+      const resp = await fetch('/search', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ codes })
+      });
+      const data = await resp.json();
+      const out = document.getElementById('output');
+      out.innerHTML = '';
+      if (!Object.keys(data).length) {
+        return out.textContent = '⚠️ No se encontró ningún código.';
+      }
+      let html = '<table><tr><th>Código</th><th>Manifiesto</th><th>Link</th><th>Veces</th></tr>';
+      for (let c of Object.keys(data)) {
+        for (let item of data[c]) {
+          html += `<tr>
+            <td>${item.code}</td>
+            <td>${item.manifesto}</td>
+            <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
+            <td>${item.occurrences}</td>
+          </tr>`;
+        }
+      }
+      html += '</table>';
+      out.innerHTML = html;
+    };
+  </script>
+</body>
+</html>
