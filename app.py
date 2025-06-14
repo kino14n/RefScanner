@@ -25,9 +25,7 @@ DATE_NAME_RE = re.compile(r'\b(' + '|'.join(MONTHS.keys()) + r')\b\W+(\d{4})', r
 DATE_NUM_RE  = re.compile(r'\b(0[1-9]|1[0-2])([12]\d{3})\b')
 
 def ocr_text(path):
-    """Convierte el PDF en imágenes y aplica OCR (español)."""
-    # Si Tesseract no está en PATH, descomenta y ajusta esta línea:
-    # pytesseract.pytesseract.tesseract_cmd = r"/usr/bin/tesseract"
+    """Convierte cada página a imagen y aplica OCR en español."""
     text = ""
     try:
         pages = convert_from_path(path, dpi=200)
@@ -44,7 +42,7 @@ def build_index():
             continue
         path = os.path.join(PDF_FOLDER, fname)
 
-        # sort_date por nombre (MARZO 2025) o por modificación
+        # Determinar sort_date por nombre o última modif.
         m_name = DATE_NAME_RE.search(fname)
         if m_name:
             mes, año = m_name.group(1).upper(), m_name.group(2)
@@ -57,43 +55,43 @@ def build_index():
                 ts = os.path.getmtime(path)
                 sort_date = int(datetime.fromtimestamp(ts).strftime("%Y%m"))
 
-        # extraer texto con pdfminer
+        # Extraer texto capa nativa
         try:
             raw_text = extract_text(path).lower()
-        except:
+        except Exception:
             raw_text = ""
 
-        # si no hay "ref:" en la capa de texto, tiramos de OCR
+        # Si no hay "ref:" en la capa, tirar de OCR
         if 'ref:' not in raw_text:
             raw_text = ocr_text(path)
 
+        # Acumular ocurrencias por página
         per_file = {}
-        # contamos ocurrencias por página
-        for page_num, page_layout in enumerate(extract_pages(path), start=1):
+        for pnum, layout in enumerate(extract_pages(path), start=1):
             page_text = ""
-            for el in page_layout:
+            for el in layout:
                 if isinstance(el, LTTextContainer):
                     page_text += el.get_text()
             page_text = page_text.lower()
             source = page_text if 'ref:' in page_text else raw_text
             for m in CODE_REGEX.finditer(source):
                 code = m.group(1).strip().rstrip('.:;,')
-                info = per_file.setdefault(code, {'total':0, 'pages':{}})
-                info['total'] += 1
-                info['pages'][page_num] = info['pages'].get(page_num,0) + 1
+                info = per_file.setdefault(code, {'pages': {}})
+                info['pages'][pnum] = info['pages'].get(pnum, 0) + 1
 
+        # Construir entradas
         for code, info in per_file.items():
-            best_page = max(info['pages'].items(), key=lambda x: x[1])[0]
+            pages_list = sorted(info['pages'].keys())
             entry = {
                 'manifesto': fname,
                 'link': f'/static/pdfs/{fname}',
                 'code': code,
-                'occurrences': info['total'],
-                'page': best_page,
+                'pages': ','.join(str(p) for p in pages_list),
                 'sort_date': sort_date
             }
             idx.setdefault(code.lower(), []).append(entry)
 
+    # Guardar índice para startup rápido
     with open(INDEX_FILE, 'w', encoding='utf-8') as f:
         json.dump(idx, f, ensure_ascii=False, indent=2)
     app.logger.info(f"Índice reconstruido: {len(idx)} códigos.")

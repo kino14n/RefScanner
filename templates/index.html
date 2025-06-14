@@ -42,18 +42,19 @@
             body: JSON.stringify({codes})
           });
           const data = await resp.json();
-          let html = '<table><tr><th>Código</th><th>Manifiesto</th><th>Link</th><th>Veces</th><th>Página</th></tr>';
+          let html = '<table><tr>'
+                   + '<th>Código</th><th>Manifiesto</th><th>Link</th><th>Páginas</th>'
+                   + '</tr>';
           for (let term in data) {
             if (data[term].length === 0) {
-              html += `<tr><td colspan="5">No se encontró “${term}”.</td></tr>`;
+              html += `<tr><td colspan="4">No se encontró “${term}”.</td></tr>`;
             } else {
               data[term].forEach(item => {
                 html += `<tr>
                   <td>${item.code}</td>
                   <td>${item.manifesto}</td>
                   <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
-                  <td>${item.occurrences}</td>
-                  <td>${item.page}</td>
+                  <td>${item.pages}</td>
                 </tr>`;
               });
             }
