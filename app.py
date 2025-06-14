@@ -13,10 +13,8 @@ app = Flask(__name__)
 PDF_FOLDER = os.path.join(app.static_folder, 'pdfs')
 INDEX_FILE = 'index.json'
 
-# Regex para capturar el código tras "Ref:"
 CODE_REGEX = re.compile(r'Ref:\s*([A-Za-z0-9-]+)', re.IGNORECASE)
 
-# Meses en español para ordenar
 MONTHS = {
     'ENERO':1,'FEBRERO':2,'MARZO':3,'ABRIL':4,'MAYO':5,'JUNIO':6,
     'JULIO':7,'AGOSTO':8,'SEPTIEMBRE':9,'OCTUBRE':10,'NOVIEMBRE':11,'DICIEMBRE':12
@@ -25,7 +23,6 @@ DATE_NAME_RE = re.compile(r'\b(' + '|'.join(MONTHS.keys()) + r')\b\W+(\d{4})', r
 DATE_NUM_RE  = re.compile(r'\b(0[1-9]|1[0-2])([12]\d{3})\b')
 
 def ocr_text(path):
-    """Convierte cada página a imagen y aplica OCR en español."""
     text = ""
     try:
         pages = convert_from_path(path, dpi=200)
@@ -42,7 +39,6 @@ def build_index():
             continue
         path = os.path.join(PDF_FOLDER, fname)
 
-        # Determinar sort_date por nombre o última modif.
         m_name = DATE_NAME_RE.search(fname)
         if m_name:
             mes, año = m_name.group(1).upper(), m_name.group(2)
@@ -55,17 +51,14 @@ def build_index():
                 ts = os.path.getmtime(path)
                 sort_date = int(datetime.fromtimestamp(ts).strftime("%Y%m"))
 
-        # Extraer texto capa nativa
         try:
             raw_text = extract_text(path).lower()
         except Exception:
             raw_text = ""
 
-        # Si no hay "ref:" en la capa, tirar de OCR
         if 'ref:' not in raw_text:
             raw_text = ocr_text(path)
 
-        # Acumular ocurrencias por página
         per_file = {}
         for pnum, layout in enumerate(extract_pages(path), start=1):
             page_text = ""
@@ -79,7 +72,6 @@ def build_index():
                 info = per_file.setdefault(code, {'pages': {}})
                 info['pages'][pnum] = info['pages'].get(pnum, 0) + 1
 
-        # Construir entradas
         for code, info in per_file.items():
             pages_list = sorted(info['pages'].keys())
             entry = {
@@ -91,7 +83,6 @@ def build_index():
             }
             idx.setdefault(code.lower(), []).append(entry)
 
-    # Guardar índice para startup rápido
     with open(INDEX_FILE, 'w', encoding='utf-8') as f:
         json.dump(idx, f, ensure_ascii=False, indent=2)
     app.logger.info(f"Índice reconstruido: {len(idx)} códigos.")

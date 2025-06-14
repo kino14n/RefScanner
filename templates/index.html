@@ -28,7 +28,7 @@
       btn.addEventListener('click', async e => {
         e.preventDefault();
         const raw = document.getElementById('codes').value;
-        const codes = raw.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+        const codes = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
         if (!codes.length) {
           out.innerHTML = '<span class="loading">⚠️ Ingresa al menos un código.</span>';
           return;
