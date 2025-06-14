@@ -1,28 +1,26 @@
-# Dockerfile
-ARG CACHEBUST=1
+# Usa la imagen oficial ligera de Python
 FROM python:3.11-slim
 
-# Instala Poppler y Tesseract (OCR en español)
-RUN apt-get update \
- && apt-get install -y --no-install-recommends \
-      poppler-utils \
-      tesseract-ocr \
-      tesseract-ocr-spa \
- && rm -rf /var/lib/apt/lists/*
+# 1) Instala librerías del sistema para PDF→imagen y OCR
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+       poppler-utils \
+       tesseract-ocr \
+       tesseract-ocr-spa && \
+    rm -rf /var/lib/apt/lists/*
 
+# 2) Crea el directorio de trabajo
 WORKDIR /app
 
-# Copia todo tu código y plantillas
-COPY . .
-
-# Instala dependencias Python
+# 3) Copia y instala requisitos Python
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Variables de entorno
-ENV PYTHONUNBUFFERED=1
+# 4) Copia el resto del código
+COPY . .
 
-# Expone el puerto que usa Gunicorn
-EXPOSE 5000
+# 5) Expone el puerto (Railway proveerá $PORT)
+ENV PORT 5000
 
-# Arranca Gunicorn
-CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "1"]
+# 6) Arranca con gunicorn
+CMD ["gunicorn", "app:app", "--bind", "0.0.0.0:5000"]

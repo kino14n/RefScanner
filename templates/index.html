@@ -1,72 +1,48 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>RefScanner</title>
-  <style>
-    body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; }
-    textarea { width: 100%; height: 100px; }
-    button { padding: 0.5rem 1rem; margin-top: 0.5rem; }
-    .loading { font-style: italic; color: #555; margin-top: 1rem; }
-    table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #f4f4f4; }
-  </style>
-</head>
-<body>
-  <h1>🔍 RefScanner</h1>
-  <p>Introduce códigos separados por comas o uno por línea:</p>
-  <textarea id="codes" placeholder="Ejemplo:&#10;173H-1&#10;C9009L, D-1234"></textarea><br>
-  <button id="btn">Buscar</button>
-  <div id="output"></div>
-
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const btn = document.getElementById('btn'),
-            out = document.getElementById('output');
-
-      btn.addEventListener('click', async e => {
+  <head>
+    <meta charset="utf-8">
+    <title>RefScanner</title>
+    <style>
+      table { border-collapse: collapse; width: 100%; }
+      th, td { border: 1px solid #ccc; padding: 8px; }
+      th { background: #eee; }
+    </style>
+  </head>
+  <body>
+    <h1>🔍 RefScanner</h1>
+    <form id="form">
+      <p>Introduce códigos separados por comas o uno por línea:</p>
+      <textarea id="codes" rows="5" style="width:100%;"></textarea><br>
+      <button type="submit">Buscar</button>
+    </form>
+    <div id="out"></div>
+    <script>
+      document.getElementById('form').addEventListener('submit', async e=>{
         e.preventDefault();
-        const raw = document.getElementById('codes').value;
-        const codes = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-        if (!codes.length) {
-          out.innerHTML = '<span class="loading">⚠️ Ingresa al menos un código.</span>';
-          return;
-        }
-        out.innerHTML = '<span class="loading">⌛ Buscando...</span>';
-
-        try {
-          const resp = await fetch('/search', {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({codes})
-          });
-          const data = await resp.json();
-          let html = '<table><tr>'
-                   + '<th>Código</th><th>Manifiesto</th><th>Link</th><th>Páginas</th>'
-                   + '</tr>';
-          for (let term in data) {
-            if (data[term].length === 0) {
-              html += `<tr><td colspan="4">No se encontró “${term}”.</td></tr>`;
-            } else {
-              data[term].forEach(item => {
-                html += `<tr>
-                  <td>${item.code}</td>
-                  <td>${item.manifesto}</td>
-                  <td><a href="${item.link}" target="_blank">Abrir PDF</a></td>
-                  <td>${item.pages}</td>
-                </tr>`;
-              });
-            }
+        const codes = document.getElementById('codes').value;
+        const resp = await fetch('/search', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({codes})
+        });
+        const data = await resp.json();
+        if (!data.length) return;
+        let html = '<table><tr><th>Código</th><th>Manifiesto</th><th>Link</th><th>Páginas</th></tr>';
+        data.forEach(r=>{
+          if (r.mensaje) {
+            html += `<tr><td colspan="4">${r.mensaje}</td></tr>`;
+          } else {
+            html += `<tr>
+              <td>${r.codigo}</td>
+              <td>${r.manifiesto}</td>
+              <td><a href="${r.link}" target="_blank">Abrir PDF</a></td>
+              <td>${r.paginas}</td>
+            </tr>`;
           }
-          html += '</table>';
-          out.innerHTML = html;
-        } catch (err) {
-          console.error(err);
-          out.innerHTML = '<span class="loading">❌ Error al buscar. Revisa la consola.</span>';
-        }
+        });
+        html += '</table>';
+        document.getElementById('out').innerHTML = html;
       });
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>
